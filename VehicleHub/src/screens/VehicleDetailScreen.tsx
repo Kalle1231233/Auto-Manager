@@ -15,6 +15,8 @@ import { StackNavigationProp } from '@react-navigation/stack';
 
 import { useVehicles } from '../hooks/useVehicles';
 import { useEntries } from '../hooks/useEntries';
+import { useEmployees } from '../hooks/useEmployees';
+import { useDocuments } from '../hooks/useDocuments';
 import { EntryCard } from '../components/EntryCard';
 import { StatusBadge } from '../components/StatusBadge';
 import { ReminderBox } from '../components/ReminderBox';
@@ -30,6 +32,8 @@ import {
 } from '../utils/calculations';
 import { exportVehicleCSV } from '../utils/export';
 import { CATEGORY_CONFIG, FUEL_TYPE_LABELS } from '../constants/categories';
+import { DOCUMENT_CONFIG } from '../constants/employees';
+import { getDaysUntil, formatDate as fmtDate } from '../utils/calculations';
 import { Colors, Spacing, BorderRadius, FontSize, FontWeight, Shadow } from '../constants/theme';
 import { RootStackParamList, EntryCategory } from '../types';
 
@@ -45,6 +49,8 @@ export function VehicleDetailScreen() {
 
   const { getVehicle, deleteVehicle } = useVehicles();
   const { getEntriesForVehicle, deleteEntry } = useEntries();
+  const { employees } = useEmployees();
+  const { getDocumentsForVehicle, deleteDocument } = useDocuments();
 
   const vehicle = getVehicle(vehicleId);
   const entries = useMemo(() => getEntriesForVehicle(vehicleId), [vehicleId, getEntriesForVehicle]);
@@ -67,6 +73,8 @@ export function VehicleDetailScreen() {
     : entries;
 
   const totalCost = entries.reduce((sum, e) => sum + (e.cost ?? 0), 0);
+  const documents = useMemo(() => getDocumentsForVehicle(vehicleId), [vehicleId, getDocumentsForVehicle]);
+  const assignee = vehicle?.assigneeId ? employees.find(e => e.id === vehicle.assigneeId) : undefined;
 
   const handleDelete = () => {
     Alert.alert(
@@ -179,6 +187,17 @@ export function VehicleDetailScreen() {
             />
           </View>
 
+          {/* Aktueller Fahrer */}
+          {assignee && (
+            <View style={styles.assigneeCard}>
+              <Ionicons name="person-circle" size={20} color={Colors.primary} />
+              <View style={styles.assigneeInfo}>
+                <Text style={styles.assigneeLabel}>Zugewiesen an</Text>
+                <Text style={styles.assigneeName}>{assignee.name}</Text>
+              </View>
+            </View>
+          )}
+
           {/* Quick Actions */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Schnell eintragen</Text>
@@ -267,6 +286,56 @@ export function VehicleDetailScreen() {
                   }
                 />
               ))
+            )}
+          </View>
+
+          {/* Dokumente */}
+          <View style={styles.section}>
+            <View style={styles.historyHeader}>
+              <Text style={styles.sectionTitle}>Dokumente ({documents.length})</Text>
+              <TouchableOpacity
+                style={styles.addEntryBtn}
+                onPress={() => navigation.navigate('AddDocument', { vehicleId })}
+              >
+                <Ionicons name="add" size={16} color={Colors.primary} />
+                <Text style={styles.addEntryText}>Dokument</Text>
+              </TouchableOpacity>
+            </View>
+            {documents.length === 0 ? (
+              <Text style={styles.noEntries}>Noch keine Dokumente hinterlegt.</Text>
+            ) : (
+              documents.map(doc => {
+                const cfg = DOCUMENT_CONFIG[doc.type];
+                const daysLeft = getDaysUntil(doc.expiryDate);
+                const isExpiring = daysLeft != null && daysLeft < 60;
+                const isExpired = daysLeft != null && daysLeft < 0;
+                return (
+                  <View key={doc.id} style={styles.docRow}>
+                    <View style={[styles.docIcon, { backgroundColor: cfg.bgColor }]}>
+                      <Ionicons name={cfg.icon as any} size={16} color={cfg.color} />
+                    </View>
+                    <View style={styles.docInfo}>
+                      <Text style={styles.docTitle}>{doc.title}</Text>
+                      <Text style={styles.docMeta}>
+                        {doc.provider ?? cfg.label}
+                        {doc.expiryDate ? ` · bis ${fmtDate(doc.expiryDate)}` : ''}
+                      </Text>
+                      {isExpired && <Text style={styles.docExpired}>ABGELAUFEN</Text>}
+                      {!isExpired && isExpiring && (
+                        <Text style={styles.docExpiring}>Läuft in {daysLeft} Tagen ab</Text>
+                      )}
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => Alert.alert('Dokument löschen', `"${doc.title}" wirklich löschen?`, [
+                        { text: 'Abbrechen', style: 'cancel' },
+                        { text: 'Löschen', style: 'destructive', onPress: () => deleteDocument(doc.id) },
+                      ])}
+                    >
+                      <Ionicons name="trash-outline" size={16} color={Colors.textTertiary} />
+                    </TouchableOpacity>
+                  </View>
+                );
+              })
             )}
           </View>
 
@@ -534,6 +603,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     padding: Spacing.xl,
   },
+  assigneeCard: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: Colors.primaryLight, padding: Spacing.sm,
+    borderRadius: BorderRadius.md, marginBottom: Spacing.sm,
+  },
+  assigneeInfo: { flex: 1 },
+  assigneeLabel: { fontSize: FontSize.xs, color: Colors.primary },
+  assigneeName: { fontSize: FontSize.md, fontWeight: FontWeight.semibold, color: Colors.primary },
+  docRow: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.borderLight,
+  },
+  docIcon: { width: 36, height: 36, borderRadius: BorderRadius.sm, justifyContent: 'center', alignItems: 'center' },
+  docInfo: { flex: 1 },
+  docTitle: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: Colors.text },
+  docMeta: { fontSize: FontSize.xs, color: Colors.textTertiary },
+  docExpired: { fontSize: FontSize.xs, color: Colors.danger, fontWeight: FontWeight.bold },
+  docExpiring: { fontSize: FontSize.xs, color: Colors.warning, fontWeight: FontWeight.semibold },
   deleteBtn: {
     flexDirection: 'row',
     alignItems: 'center',
