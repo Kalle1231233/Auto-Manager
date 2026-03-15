@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,6 +28,7 @@ import {
   formatCurrency,
   getUrgentWarnings,
 } from '../utils/calculations';
+import { exportVehicleCSV } from '../utils/export';
 import { CATEGORY_CONFIG, FUEL_TYPE_LABELS } from '../constants/categories';
 import { Colors, Spacing, BorderRadius, FontSize, FontWeight, Shadow } from '../constants/theme';
 import { RootStackParamList, EntryCategory } from '../types';
@@ -93,13 +95,27 @@ export function VehicleDetailScreen() {
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
               <Ionicons name="chevron-back" size={22} color="#fff" />
             </TouchableOpacity>
+          <View style={styles.heroActions}>
             <TouchableOpacity
               onPress={() => navigation.navigate('AddVehicle', { vehicleId })}
               style={styles.backBtn}
             >
               <Ionicons name="create-outline" size={22} color="#fff" />
             </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => exportVehicleCSV(vehicle, entries)}
+              style={styles.backBtn}
+            >
+              <Ionicons name="download-outline" size={22} color="#fff" />
+            </TouchableOpacity>
           </View>
+          </View>
+          {vehicle.imageBase64 && (
+            <Image
+              source={{ uri: `data:image/jpeg;base64,${vehicle.imageBase64}` }}
+              style={styles.heroImage}
+            />
+          )}
           <Text style={styles.heroName}>{vehicle.name}</Text>
           <Text style={styles.heroSubtitle}>
             {vehicle.brand} {vehicle.model} · {vehicle.year}
@@ -352,7 +368,18 @@ const styles = StyleSheet.create({
   heroNav: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: Spacing.md,
+  },
+  heroActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  heroImage: {
+    width: '100%',
+    height: 160,
+    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing.sm,
   },
   backBtn: {
     width: 36,

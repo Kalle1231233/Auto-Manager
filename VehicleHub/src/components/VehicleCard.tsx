@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Vehicle, VehicleEntry } from '../types';
 import { StatusBadge } from './StatusBadge';
@@ -33,7 +33,14 @@ export function VehicleCard({ vehicle, entries, onPress }: Props) {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
       <View style={styles.header}>
-        <View style={[styles.colorDot, { backgroundColor: vehicle.color }]} />
+        {vehicle.imageBase64 ? (
+          <Image
+            source={{ uri: `data:image/jpeg;base64,${vehicle.imageBase64}` }}
+            style={styles.vehicleThumb}
+          />
+        ) : (
+          <View style={[styles.colorDot, { backgroundColor: vehicle.color }]} />
+        )}
         <View style={styles.headerInfo}>
           <Text style={styles.vehicleName}>{vehicle.name}</Text>
           <Text style={styles.vehicleSubtitle}>
@@ -133,9 +140,15 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   colorDot: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    marginRight: Spacing.sm,
+  },
+  vehicleThumb: {
+    width: 60,
+    height: 44,
+    borderRadius: BorderRadius.sm,
     marginRight: Spacing.sm,
   },
   headerInfo: {

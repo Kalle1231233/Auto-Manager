@@ -25,6 +25,7 @@ export interface Vehicle {
   fuelType: FuelType;
   color: string;
   vin?: string;
+  imageBase64?: string;
   tuevDate?: string;
   nextServiceDate?: string;
   nextServiceMileage?: number;
@@ -80,5 +81,26 @@ export type RootStackParamList = {
 export type MainTabParamList = {
   Dashboard: undefined;
   Vehicles: undefined;
+  Stats: undefined;
   Settings: undefined;
 };
+
+export interface MileageRecord {
+  id: string;
+  vehicleId: string;
+  date: string;
+  mileage: number;
+  note?: string;
+}
+
+export interface CostStat {
+  category: EntryCategory;
+  total: number;
+  count: number;
+}
+
+export interface MonthlyStat {
+  month: string;
+  total: number;
+  entries: number;
+}

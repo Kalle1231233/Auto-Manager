@@ -9,10 +9,11 @@ import { VehiclesScreen } from '../screens/VehiclesScreen';
 import { VehicleDetailScreen } from '../screens/VehicleDetailScreen';
 import { AddVehicleScreen } from '../screens/AddVehicleScreen';
 import { AddEntryScreen } from '../screens/AddEntryScreen';
+import { StatsScreen } from '../screens/StatsScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 
 import { RootStackParamList, MainTabParamList } from '../types';
-import { Colors } from '../constants/theme';
+import { Colors, FontSize } from '../constants/theme';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -39,6 +40,7 @@ function MainTabs() {
           let iconName: any = 'home';
           if (route.name === 'Dashboard') iconName = focused ? 'home' : 'home-outline';
           if (route.name === 'Vehicles') iconName = focused ? 'car-sport' : 'car-sport-outline';
+          if (route.name === 'Stats') iconName = focused ? 'bar-chart' : 'bar-chart-outline';
           if (route.name === 'Settings') iconName = focused ? 'settings' : 'settings-outline';
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -46,6 +48,7 @@ function MainTabs() {
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'Dashboard' }} />
       <Tab.Screen name="Vehicles" component={VehiclesScreen} options={{ title: 'Fahrzeuge' }} />
+      <Tab.Screen name="Stats" component={StatsScreen} options={{ title: 'Statistiken' }} />
       <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: 'Einstellungen' }} />
     </Tab.Navigator>
   );

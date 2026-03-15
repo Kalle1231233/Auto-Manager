@@ -9,11 +9,13 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import * as ImagePicker from 'expo-image-picker';
 
 import { useVehicles } from '../hooks/useVehicles';
 import { FuelType, RootStackParamList } from '../types';
@@ -46,6 +48,7 @@ export function AddVehicleScreen() {
   const [mileage, setMileage] = useState('');
   const [fuelType, setFuelType] = useState<FuelType>('benzin');
   const [color, setColor] = useState(VEHICLE_COLORS[0]);
+  const [imageBase64, setImageBase64] = useState<string | undefined>(undefined);
   const [vin, setVin] = useState('');
   const [tuevDate, setTuevDate] = useState('');
   const [nextServiceDate, setNextServiceDate] = useState('');
@@ -62,6 +65,7 @@ export function AddVehicleScreen() {
       setMileage(String(existingVehicle.mileage));
       setFuelType(existingVehicle.fuelType);
       setColor(existingVehicle.color);
+      setImageBase64(existingVehicle.imageBase64);
       setVin(existingVehicle.vin ?? '');
       setTuevDate(existingVehicle.tuevDate ? formatDateForInput(existingVehicle.tuevDate) : '');
       setNextServiceDate(existingVehicle.nextServiceDate ? formatDateForInput(existingVehicle.nextServiceDate) : '');
@@ -77,6 +81,26 @@ export function AddVehicleScreen() {
     const yearStr = d.getFullYear();
     return `${day}.${month}.${yearStr}`;
   }
+
+  const pickImage = async () => {
+    if (Platform.OS !== 'web') {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Berechtigung benötigt', 'Bitte erlaube den Zugriff auf die Fotobibliothek.');
+        return;
+      }
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.6,
+      base64: true,
+    });
+    if (!result.canceled && result.assets[0].base64) {
+      setImageBase64(result.assets[0].base64);
+    }
+  };
 
   function parseInputDate(input: string): string | undefined {
     const parts = input.split('.');
@@ -104,6 +128,7 @@ export function AddVehicleScreen() {
       mileage: parsedMileage,
       fuelType,
       color,
+      imageBase64,
       vin: vin.trim() || undefined,
       tuevDate: tuevDate ? parseInputDate(tuevDate) : undefined,
       nextServiceDate: nextServiceDate ? parseInputDate(nextServiceDate) : undefined,
@@ -142,11 +167,34 @@ export function AddVehicleScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Color Picker */}
+          {/* Bild & Farbe */}
           <View style={styles.colorSection}>
-            <View style={[styles.colorPreview, { backgroundColor: color }]}>
-              <Ionicons name="car" size={40} color="rgba(255,255,255,0.7)" />
-            </View>
+            <TouchableOpacity
+              style={[styles.colorPreview, { backgroundColor: color }]}
+              onPress={pickImage}
+              activeOpacity={0.8}
+            >
+              {imageBase64 ? (
+                <Image
+                  source={{ uri: `data:image/jpeg;base64,${imageBase64}` }}
+                  style={styles.vehicleImage}
+                />
+              ) : (
+                <>
+                  <Ionicons name="car" size={36} color="rgba(255,255,255,0.7)" />
+                  <Text style={styles.imageHint}>Foto hinzufügen</Text>
+                </>
+              )}
+              <View style={styles.cameraOverlay}>
+                <Ionicons name="camera" size={14} color="#fff" />
+              </View>
+            </TouchableOpacity>
+            {imageBase64 && (
+              <TouchableOpacity onPress={() => setImageBase64(undefined)} style={styles.removeImage}>
+                <Ionicons name="close-circle" size={16} color={Colors.danger} />
+                <Text style={styles.removeImageText}>Bild entfernen</Text>
+              </TouchableOpacity>
+            )}
             <View style={styles.colorPicker}>
               {VEHICLE_COLORS.map(c => (
                 <TouchableOpacity
@@ -371,13 +419,42 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   colorPreview: {
-    width: 100,
-    height: 70,
+    width: 160,
+    height: 100,
     borderRadius: BorderRadius.lg,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.sm,
+    overflow: 'hidden',
     ...Shadow.medium,
+  },
+  vehicleImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: BorderRadius.lg,
+  },
+  imageHint: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: FontSize.xs,
+    marginTop: 4,
+  },
+  cameraOverlay: {
+    position: 'absolute',
+    bottom: 6,
+    right: 6,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderRadius: 10,
+    padding: 4,
+  },
+  removeImage: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: Spacing.xs,
+  },
+  removeImageText: {
+    fontSize: FontSize.xs,
+    color: Colors.danger,
   },
   colorPicker: {
     flexDirection: 'row',
