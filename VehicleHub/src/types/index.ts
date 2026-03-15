@@ -34,6 +34,8 @@ export interface Vehicle {
   updatedAt: string;
 }
 
+export type VatRate = 0 | 7 | 19;
+
 export interface VehicleEntry {
   id: string;
   vehicleId: string;
@@ -45,7 +47,43 @@ export interface VehicleEntry {
   nextDueDate?: string;
   nextDueMileage?: number;
   createdAt: string;
+  // Geschäftskonto-Felder
+  isBusinessExpense?: boolean;
+  businessRatio?: number;
+  vatRate?: VatRate;
+  receiptNumber?: string;
+  supplier?: string;
 }
+
+export interface TripEntry {
+  id: string;
+  vehicleId: string;
+  date: string;
+  startMileage: number;
+  endMileage: number;
+  distance: number;
+  destination: string;
+  purpose: string;
+  isBusinessTrip: boolean;
+  createdAt: string;
+}
+
+export interface BusinessSettings {
+  enabled: boolean;
+  companyName?: string;
+  vatId?: string;
+  defaultVatRate: VatRate;
+  defaultBusinessRatio: number;
+}
+
+export type RootStackParamList = {
+  MainTabs: undefined;
+  VehicleDetail: { vehicleId: string };
+  AddVehicle: { vehicleId?: string };
+  AddEntry: { vehicleId: string; category?: EntryCategory };
+  AddTrip: { vehicleId: string };
+  BusinessReport: undefined;
+};
 
 export interface VehicleStatus {
   tuev: {
@@ -71,17 +109,11 @@ export interface VehicleStatus {
   };
 }
 
-export type RootStackParamList = {
-  MainTabs: undefined;
-  VehicleDetail: { vehicleId: string };
-  AddVehicle: { vehicleId?: string };
-  AddEntry: { vehicleId: string; category?: EntryCategory };
-};
-
 export type MainTabParamList = {
   Dashboard: undefined;
   Vehicles: undefined;
   Stats: undefined;
+  Business: undefined;
   Settings: undefined;
 };
 

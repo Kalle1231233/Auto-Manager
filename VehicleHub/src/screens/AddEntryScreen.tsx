@@ -17,9 +17,11 @@ import { StackNavigationProp } from '@react-navigation/stack';
 
 import { useEntries } from '../hooks/useEntries';
 import { useVehicles } from '../hooks/useVehicles';
-import { EntryCategory, RootStackParamList } from '../types';
+import { useBusinessSettings } from '../hooks/useBusinessSettings';
+import { EntryCategory, RootStackParamList, VatRate } from '../types';
 import { CATEGORY_CONFIG, ALL_CATEGORIES } from '../constants/categories';
 import { Colors, Spacing, BorderRadius, FontSize, FontWeight, Shadow } from '../constants/theme';
+import { calcVat, calcBusinessAmount } from '../utils/business';
 
 type Nav = StackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'AddEntry'>;
@@ -31,6 +33,7 @@ export function AddEntryScreen() {
 
   const { addEntry } = useEntries();
   const { getVehicle, updateVehicle } = useVehicles();
+  const { settings: bizSettings } = useBusinessSettings();
   const vehicle = getVehicle(vehicleId);
 
   const [category, setCategory] = useState<EntryCategory>(presetCategory ?? 'sonstiges');
@@ -41,6 +44,12 @@ export function AddEntryScreen() {
   const [nextDueDate, setNextDueDate] = useState('');
   const [nextDueMileage, setNextDueMileage] = useState('');
   const [updateMileage, setUpdateMileage] = useState(true);
+  // Business-Felder
+  const [isBusinessExpense, setIsBusinessExpense] = useState(bizSettings.enabled);
+  const [vatRate, setVatRate] = useState<VatRate>(bizSettings.defaultVatRate);
+  const [businessRatio, setBusinessRatio] = useState(String(bizSettings.defaultBusinessRatio));
+  const [receiptNumber, setReceiptNumber] = useState('');
+  const [supplier, setSupplier] = useState('');
 
   function formatDateForInput(isoDate: string): string {
     const d = new Date(isoDate);
@@ -67,6 +76,8 @@ export function AddEntryScreen() {
     const parsedNextDue = nextDueDate ? parseInputDate(nextDueDate) : undefined;
     const parsedNextDueMileage = nextDueMileage ? parseInt(nextDueMileage) : undefined;
 
+    const parsedBusinessRatio = parseInt(businessRatio) || 100;
+
     await addEntry({
       vehicleId,
       category,
@@ -76,6 +87,11 @@ export function AddEntryScreen() {
       note: note.trim() || undefined,
       nextDueDate: parsedNextDue,
       nextDueMileage: parsedNextDueMileage,
+      isBusinessExpense: isBusinessExpense || undefined,
+      vatRate: isBusinessExpense ? vatRate : undefined,
+      businessRatio: isBusinessExpense ? parsedBusinessRatio : undefined,
+      receiptNumber: receiptNumber.trim() || undefined,
+      supplier: supplier.trim() || undefined,
     });
 
     // Update vehicle mileage if needed
@@ -221,6 +237,87 @@ export function AddEntryScreen() {
             <Text style={styles.optionText}>Fahrzeug-Kilometerstand aktualisieren</Text>
           </TouchableOpacity>
 
+          {/* Geschäftskonto */}
+          <TouchableOpacity
+            style={[styles.optionRow, { marginTop: Spacing.sm, borderColor: isBusinessExpense ? Colors.primary : Colors.border, borderWidth: 1.5 }]}
+            onPress={() => setIsBusinessExpense(!isBusinessExpense)}
+          >
+            <View style={[styles.checkbox, isBusinessExpense && styles.checkboxActive]}>
+              {isBusinessExpense && <Ionicons name="checkmark" size={14} color="#fff" />}
+            </View>
+            <Ionicons name="business" size={16} color={isBusinessExpense ? Colors.primary : Colors.textTertiary} />
+            <Text style={[styles.optionText, isBusinessExpense && { color: Colors.primary, fontWeight: FontWeight.semibold }]}>
+              Geschäftliche Ausgabe (absetzbar)
+            </Text>
+          </TouchableOpacity>
+
+          {isBusinessExpense && (
+            <View style={[styles.formCard, { borderLeftWidth: 3, borderLeftColor: Colors.primary }]}>
+              {/* Lieferant */}
+              <FormField
+                label="Lieferant / Werkstatt"
+                value={supplier}
+                onChangeText={setSupplier}
+                placeholder="z.B. BMW Autohaus GmbH"
+              />
+              {/* Beleg-Nr */}
+              <FormField
+                label="Belegnummer / Rechnungsnummer"
+                value={receiptNumber}
+                onChangeText={setReceiptNumber}
+                placeholder="z.B. RE-2024-00123"
+              />
+              {/* MwSt-Satz */}
+              <View style={styles.fieldWrapper}>
+                <Text style={styles.fieldLabel}>MwSt-Satz</Text>
+                <View style={styles.vatRow}>
+                  {([0, 7, 19] as VatRate[]).map(rate => (
+                    <TouchableOpacity
+                      key={rate}
+                      style={[styles.vatBtn, vatRate === rate && styles.vatBtnActive]}
+                      onPress={() => setVatRate(rate)}
+                    >
+                      <Text style={[styles.vatBtnText, vatRate === rate && styles.vatBtnTextActive]}>
+                        {rate}%
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              {/* Geschäftlicher Anteil */}
+              <FormField
+                label="Geschäftlicher Anteil"
+                value={businessRatio}
+                onChangeText={setBusinessRatio}
+                placeholder="100"
+                keyboardType="number-pad"
+                suffix="%"
+              />
+              {/* Live-Vorschau */}
+              {cost !== '' && parseFloat(cost.replace(',', '.')) > 0 && (
+                <View style={styles.vatPreview}>
+                  {(() => {
+                    const gross = parseFloat(cost.replace(',', '.'));
+                    const { net, vat } = calcVat(gross, vatRate);
+                    const ratio = parseInt(businessRatio) || 100;
+                    const deductible = calcBusinessAmount(gross, ratio);
+                    const { vat: dedVat } = calcVat(deductible, vatRate);
+                    return (
+                      <>
+                        <VatRow label="Brutto" value={`${gross.toFixed(2)} €`} />
+                        <VatRow label={`Netto (ohne ${vatRate}% MwSt)`} value={`${net.toFixed(2)} €`} />
+                        <VatRow label="Enthaltene MwSt" value={`${vat.toFixed(2)} €`} />
+                        <View style={styles.vatDivider} />
+                        <VatRow label={`Absetzbar (${ratio}%)`} value={`${deductible.toFixed(2)} €`} bold />
+                        <VatRow label="Vorsteuer-Erstattung" value={`${dedVat.toFixed(2)} €`} bold color={Colors.success} />
+                      </>
+                    );
+                  })()}
+                </View>
+              )}
+            </View>
+          )}
+
           <View style={{ height: Spacing.xxl }} />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -255,6 +352,15 @@ function FormField({ label, value, onChangeText, placeholder, keyboardType, mult
         />
         {suffix && <Text style={styles.inputSuffix}>{suffix}</Text>}
       </View>
+    </View>
+  );
+}
+
+function VatRow({ label, value, bold, color }: { label: string; value: string; bold?: boolean; color?: string }) {
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 }}>
+      <Text style={{ fontSize: FontSize.xs, color: Colors.textSecondary }}>{label}</Text>
+      <Text style={{ fontSize: FontSize.xs, fontWeight: bold ? FontWeight.bold : FontWeight.regular, color: color ?? Colors.text }}>{value}</Text>
     </View>
   );
 }
@@ -411,5 +517,41 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: Colors.text,
     flex: 1,
+  },
+  vatRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.xs,
+  },
+  vatBtn: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  vatBtnActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  vatBtnText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+    color: Colors.textSecondary,
+  },
+  vatBtnTextActive: {
+    color: '#fff',
+  },
+  vatPreview: {
+    backgroundColor: Colors.background,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+  vatDivider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginVertical: 4,
   },
 });

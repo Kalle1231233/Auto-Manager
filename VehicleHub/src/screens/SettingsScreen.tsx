@@ -1,12 +1,15 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { useBusinessSettings } from '../hooks/useBusinessSettings';
 import { Colors, Spacing, BorderRadius, FontSize, FontWeight, Shadow } from '../constants/theme';
+import { VatRate } from '../types';
 
 export function SettingsScreen() {
+  const { settings, updateSettings } = useBusinessSettings();
   const handleResetData = () => {
     Alert.alert(
       'Alle Daten zurücksetzen',
@@ -51,6 +54,65 @@ export function SettingsScreen() {
             Dein persönlicher Fahrzeug-Manager.{'\n'}Alle Wartungen, TÜV und Service auf einen Blick.
           </Text>
         </View>
+
+        {/* Geschäftskonto */}
+        <SettingsSection title="Geschäftskonto">
+          <View style={styles.settingsRow}>
+            <View style={[styles.itemIcon, { backgroundColor: `${Colors.primary}20` }]}>
+              <Ionicons name="business" size={18} color={Colors.primary} />
+            </View>
+            <View style={styles.settingsRowContent}>
+              <Text style={styles.settingsRowLabel}>Business-Modus</Text>
+              <Text style={styles.settingsRowSub}>MwSt, Vorsteuer & Fahrtenprotokoll</Text>
+            </View>
+            <Switch
+              value={settings.enabled}
+              onValueChange={v => updateSettings({ enabled: v })}
+              trackColor={{ true: Colors.primary }}
+            />
+          </View>
+          {settings.enabled && (
+            <>
+              <BizField
+                label="Unternehmensname"
+                value={settings.companyName ?? ''}
+                onChange={v => updateSettings({ companyName: v })}
+                placeholder="Musterfirma GmbH"
+              />
+              <BizField
+                label="USt-ID"
+                value={settings.vatId ?? ''}
+                onChange={v => updateSettings({ vatId: v })}
+                placeholder="DE123456789"
+                autoCapitalize="characters"
+              />
+              <View style={styles.bizField}>
+                <Text style={styles.bizLabel}>Standard-MwSt-Satz</Text>
+                <View style={styles.vatRow}>
+                  {([0, 7, 19] as VatRate[]).map(rate => (
+                    <TouchableOpacity
+                      key={rate}
+                      style={[styles.vatBtn, settings.defaultVatRate === rate && styles.vatBtnActive]}
+                      onPress={() => updateSettings({ defaultVatRate: rate })}
+                    >
+                      <Text style={[styles.vatBtnText, settings.defaultVatRate === rate && { color: '#fff' }]}>
+                        {rate}%
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              <BizField
+                label="Standard geschäftlicher Anteil"
+                value={String(settings.defaultBusinessRatio)}
+                onChange={v => updateSettings({ defaultBusinessRatio: parseInt(v) || 100 })}
+                placeholder="100"
+                keyboardType="number-pad"
+                suffix="%"
+              />
+            </>
+          )}
+        </SettingsSection>
 
         {/* Data Management */}
         <SettingsSection title="Datenverwaltung">
@@ -119,6 +181,29 @@ export function SettingsScreen() {
         </Text>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function BizField({ label, value, onChange, placeholder, keyboardType, autoCapitalize, suffix }: {
+  label: string; value: string; onChange: (v: string) => void;
+  placeholder?: string; keyboardType?: any; autoCapitalize?: any; suffix?: string;
+}) {
+  return (
+    <View style={styles.bizField}>
+      <Text style={styles.bizLabel}>{label}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <TextInput
+          style={styles.bizInput}
+          value={value}
+          onChangeText={onChange}
+          placeholder={placeholder}
+          placeholderTextColor={Colors.textTertiary}
+          keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize ?? 'sentences'}
+        />
+        {suffix && <Text style={{ fontSize: FontSize.sm, color: Colors.textTertiary, marginLeft: 4 }}>{suffix}</Text>}
+      </View>
+    </View>
   );
 }
 
@@ -263,6 +348,34 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     marginTop: 1,
   },
+  settingsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+    gap: Spacing.sm,
+  },
+  settingsRowContent: { flex: 1 },
+  settingsRowLabel: { fontSize: FontSize.md, fontWeight: FontWeight.medium, color: Colors.text },
+  settingsRowSub: { fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: 1 },
+  bizField: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  bizLabel: { fontSize: FontSize.xs, color: Colors.textTertiary, marginBottom: 4 },
+  bizInput: { fontSize: FontSize.md, color: Colors.text, flex: 1, paddingVertical: 2 },
+  vatRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: 4 },
+  vatBtn: {
+    paddingHorizontal: Spacing.md, paddingVertical: 6,
+    borderRadius: BorderRadius.full, borderWidth: 1.5,
+    borderColor: Colors.border, backgroundColor: Colors.background,
+  },
+  vatBtnActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  vatBtnText: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: Colors.textSecondary },
   footer: {
     textAlign: 'center',
     fontSize: FontSize.xs,
